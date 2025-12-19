@@ -17,6 +17,6 @@ logs/
 *.swp
 *.swo
 
-# Go
+# Go 
 /vendor/
 /go.sum
