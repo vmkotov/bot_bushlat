@@ -1,0 +1,22 @@
+# Файлы окружения
+.env
+.env.local
+
+# Бинарные файлы
+bot
+/bot.exe
+*.exe
+
+# Логи
+*.log
+logs/
+
+# IDE файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Go
+/vendor/
+/go.sum
