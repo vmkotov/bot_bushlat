@@ -67,7 +67,7 @@ DEBUG=${DEBUG:-false}
 read -p "Введите LOG_LEVEL (info/debug/error, по умолчанию info): " LOG_LEVEL
 LOG_LEVEL=${LOG_LEVEL:-info}
 
-# 🔧 НОВОЕ: Запрашиваем Service Account ID
+# 🔧 Настройка Service Account для Yandex Cloud
 echo -e "${YELLOW}🔐 Настройка Service Account для Yandex Cloud...${NC}"
 read -p "Введите SERVICE_ACCOUNT_ID (или оставьте пустым для автоматического создания): " SERVICE_ACCOUNT_ID
 
@@ -96,6 +96,31 @@ if [ -z "$SERVICE_ACCOUNT_ID" ]; then
 else
     echo -e "${GREEN}✅ Используем существующий Service Account: $SERVICE_ACCOUNT_ID${NC}"
 fi
+
+# 🔐 Даем права Service Account на доступ к Registry
+echo -e "${YELLOW}🔐 Назначаем права Service Account на Container Registry...${NC}"
+echo "Реестр: $REGISTRY_ID, Service Account: $SERVICE_ACCOUNT_ID"
+
+# Даем права на pull образов (обязательно для деплоя)
+if ! yc container registry add-access-binding $REGISTRY_ID \
+    --role container-registry.images.puller \
+    --subject serviceAccount:$SERVICE_ACCOUNT_ID 2>/dev/null; then
+    echo -e "${YELLOW}⚠️  Права уже назначены (это нормально)${NC}"
+else
+    echo -e "${GREEN}✅ Права на образ назначены${NC}"
+fi
+
+# Также даем права на сервис serverless containers
+if ! yc resource-manager folder add-access-binding $(yc config get folder-id) \
+    --role serverless.containers.invoker \
+    --subject serviceAccount:$SERVICE_ACCOUNT_ID 2>/dev/null; then
+    echo -e "${YELLOW}⚠️  Права на serverless containers уже есть${NC}"
+else
+    echo -e "${GREEN}✅ Права на serverless containers назначены${NC}"
+fi
+
+# Ждем немного чтобы права применились
+sleep 2
 
 # Формируем полный список переменных окружения
 ENV_VARS="TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"
