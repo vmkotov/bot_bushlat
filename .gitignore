@@ -1,22 +1,22 @@
-# Файлы окружения
+# Environment variables
 .env
-.env.local
 
-# Бинарные файлы
-bot
-/bot.exe
+# Binaries
 *.exe
+*.dll
+*.so
+*.dylib
 
-# Логи
-*.log
-logs/
+# Database files
+*.db
 
-# IDE файлы
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Go 
-/vendor/
-/go.sum
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log.DS_Store
