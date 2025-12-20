@@ -67,6 +67,36 @@ DEBUG=${DEBUG:-false}
 read -p "Введите LOG_LEVEL (info/debug/error, по умолчанию info): " LOG_LEVEL
 LOG_LEVEL=${LOG_LEVEL:-info}
 
+# 🔧 НОВОЕ: Запрашиваем Service Account ID
+echo -e "${YELLOW}🔐 Настройка Service Account для Yandex Cloud...${NC}"
+read -p "Введите SERVICE_ACCOUNT_ID (или оставьте пустым для автоматического создания): " SERVICE_ACCOUNT_ID
+
+if [ -z "$SERVICE_ACCOUNT_ID" ]; then
+    echo "📝 Создаем новый Service Account..."
+    SA_NAME="bushlatinga-sa-$(date +%Y%m%d-%H%M%S)"
+    
+    # Создаем Service Account
+    if ! yc iam service-account create --name "$SA_NAME" --description "Service Account для Bushlatinga Bot"; then
+        echo -e "${RED}❌ Ошибка создания Service Account${NC}"
+        exit 1
+    fi
+    
+    # Получаем ID созданного SA
+    SERVICE_ACCOUNT_ID=$(yc iam service-account get --name "$SA_NAME" --format json | jq -r '.id' 2>/dev/null)
+    
+    if [ -z "$SERVICE_ACCOUNT_ID" ]; then
+        echo -e "${RED}❌ Не удалось получить ID созданного Service Account${NC}"
+        echo -e "${YELLOW}⚠️  Попробуйте создать SA вручную:${NC}"
+        echo "yc iam service-account create --name bushlatinga-sa"
+        echo "yc iam service-account list"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✅ Создан Service Account: $SA_NAME (ID: $SERVICE_ACCOUNT_ID)${NC}"
+else
+    echo -e "${GREEN}✅ Используем существующий Service Account: $SERVICE_ACCOUNT_ID${NC}"
+fi
+
 # Формируем полный список переменных окружения
 ENV_VARS="TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"
 ENV_VARS="$ENV_VARS,ADMIN_CHAT_ID=$ADMIN_CHAT_ID"
@@ -118,6 +148,7 @@ if ! yc serverless container revision deploy \
     --memory 128MB \
     --concurrency 1 \
     --execution-timeout 300s \
+    --service-account-id "$SERVICE_ACCOUNT_ID" \
     --environment "$ENV_VARS"; then
     echo -e "${RED}❌ Ошибка деплоя ревизии${NC}"
     exit 1
@@ -128,6 +159,7 @@ echo -e "${YELLOW}📋 Информация о развертывании:${NC}"
 echo "• Реестр: cr.yandex/$REGISTRY_ID"
 echo "• Образ: bushlatinga-bot:latest"
 echo "• Контейнер: bushlatinga-bot"
+echo "• Service Account: $SERVICE_ACCOUNT_ID"
 echo "• Память: 128MB"
 echo "• Таймаут: 300s"
 echo "• Переменные окружения:"
