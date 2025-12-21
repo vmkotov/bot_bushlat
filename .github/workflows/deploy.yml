@@ -1,4 +1,4 @@
-name: 🚀 Deploy Bushlatinga Bot
+name: Deploy Bushlatinga Bot
 
 on:
   push:
@@ -16,58 +16,55 @@ jobs:
     timeout-minutes: 15
     
     steps:
-    - name: 📥 Checkout code
+    - name: Checkout code
       uses: actions/checkout@v3
       
-    - name: 🔧 Setup Go
+    - name: Setup Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
         
-    - name: 📦 Install dependencies
+    - name: Install dependencies
       run: go mod download
       
-    - name: 🧪 Test build
-      run: go build -o bot . && echo "✅ Build successful"
+    - name: Test build
+      run: go build -o bot . && echo "Build successful"
       
-    - name: 🔐 Setup Yandex Cloud CLI
+    - name: Setup Yandex Cloud CLI
       run: |
         curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /usr/local -n
         echo "/usr/local/bin" >> $GITHUB_PATH
         yc --version
       
-    - name: ⚙️ Configure Yandex Cloud
+    - name: Configure Yandex Cloud
       run: |
         yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
         yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
         yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
         
-    - name: 🐳 Login to Container Registry
+    - name: Login to Container Registry
       run: |
         echo ${{ secrets.YC_IAM_TOKEN }} | docker login \
           --username iam \
           --password-stdin \
           cr.yandex
           
-    - name: 🏗️ Build Docker image
+    - name: Build Docker image
       run: |
         docker build \
           -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/bushlatinga-bot:latest \
           -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/bushlatinga-bot:${{ github.sha }} \
           -f Dockerfile.yc .
           
-    - name: 📦 Push Docker image
+    - name: Push Docker image
       run: |
         docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/bushlatinga-bot:latest
         docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/bushlatinga-bot:${{ github.sha }}
         
-    - name: �� Deploy to Yandex Cloud
+    - name: Deploy to Yandex Cloud
       run: |
         # Создаем переменные окружения
-        ENV_VARS="TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }},\
-ADMIN_CHAT_ID=${{ secrets.ADMIN_CHAT_ID }},\
-DEBUG=${{ secrets.DEBUG }},\
-LOG_LEVEL=${{ secrets.LOG_LEVEL }}"
+        ENV_VARS="TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }},ADMIN_CHAT_ID=${{ secrets.ADMIN_CHAT_ID }},DEBUG=${{ secrets.DEBUG }},LOG_LEVEL=${{ secrets.LOG_LEVEL }}"
         
         # Добавляем DATABASE_URL если есть
         if [ -n "${{ secrets.DATABASE_URL }}" ]; then
@@ -86,8 +83,8 @@ LOG_LEVEL=${{ secrets.LOG_LEVEL }}"
           --environment "$ENV_VARS" \
           --description "Auto-deploy from GitHub: ${{ github.sha }}"
           
-    - name: 📊 Verify deployment
+    - name: Verify deployment
       run: |
         sleep 5
-        echo "✅ Deployment complete!"
+        echo "Deployment complete!"
         yc serverless container revision list --container-name bushlatinga-bot --limit 1
