@@ -2,32 +2,32 @@ FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 
+# Копируем зависимости
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
+# Копируем исходники
+COPY *.go ./
+COPY handlers/ ./handlers/
+COPY logging/ ./logging/
 
+# Собираем приложение
 RUN CGO_ENABLED=0 GOOS=linux go build -o bushlatinga_bot .
 
+# Финальный образ
 FROM alpine:latest
 
-WORKDIR /app
+RUN apk --no-cache add ca-certificates tzdata
+ENV TZ=Europe/Moscow
 
-# Копируем бинарник из builder
+WORKDIR /root/
+
+# Копируем бинарник
 COPY --from=builder /app/bushlatinga_bot .
 
-# Копируем .env.example для информации
-COPY --from=builder /app/.env.example .env.example
-
-# Устанавливаем зависимости
-RUN apk --no-cache add ca-certificates tzdata
-
-# Даем права на выполнение бинарника
-RUN chmod +x /app/bushlatinga_bot
-
-# Создаем non-root пользователя
+# Создаем не-root пользователя
 RUN adduser -D -g '' appuser
 USER appuser
 
-# Запускаем бота
-CMD ["/app/bushlatinga_bot"]
+# Запускаем приложение
+CMD ["./bushlatinga_bot"]
