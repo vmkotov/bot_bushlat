@@ -32,8 +32,10 @@ jobs:
       
     - name: Setup Yandex Cloud CLI
       run: |
-        curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /usr/local -n
-        echo "/usr/local/bin" >> $GITHUB_PATH
+        # Устанавливаем yc в домашнюю директорию, а не в /usr/local
+        curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i ~/.local -n
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        sleep 2
         yc --version
       
     - name: Configure Yandex Cloud
