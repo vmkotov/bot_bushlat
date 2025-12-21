@@ -22,3 +22,9 @@ Thumbs.db
 *.log.DS_Store
 bushlatinga_bot
 test_bot
+
+# Удалённые файлы
+.DS_Store
+key.json
+cloud-init.yaml
+Dockerfile
