@@ -28,3 +28,9 @@ test_bot
 key.json
 cloud-init.yaml
 Dockerfile
+
+# Temporary patch files
+*.patch
+*.backup
+*.orig
+*.rej
