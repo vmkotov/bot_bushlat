@@ -9,3 +9,9 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 )
+
+require github.com/vmkotov/telelog v0.0.0-20251222152736-38edbb74f8b2
+
+// Добавляем replace для локальной разработки (если telelog лежит рядом)
+
+replace github.com/vmkotov/telelog => ../telelog
