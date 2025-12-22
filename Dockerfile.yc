@@ -9,7 +9,6 @@ RUN go mod download
 # Копируем исходники
 COPY *.go ./
 COPY handlers/ ./handlers/
-COPY logging/ ./logging/
 
 # Собираем приложение
 RUN CGO_ENABLED=0 GOOS=linux go build -o bushlatinga_bot .
