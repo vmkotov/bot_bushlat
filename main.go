@@ -1,12 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"log"
+	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -17,12 +18,10 @@ import (
 
 func main() {
 	// Загружаем конфигурацию
-	log.Println("🔧 Starting Bushlatinga Bot...")
+	log.Println("🔧 Starting Bushlatinga Bot (Webhook version)...")
 
 	if err := godotenv.Load(); err != nil {
 		log.Printf("⚠️ Warning: No .env file found: %v", err)
-	} else {
-		log.Println("✅ .env file loaded")
 	}
 
 	// Получаем токен бота
@@ -31,8 +30,6 @@ func main() {
 		log.Fatal("❌ TELEGRAM_BOT_TOKEN not found in .env")
 	}
 
-	log.Printf("🔑 Token preview: %s...", token[:min(20, len(token))])
-
 	// Создаем бота
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
@@ -40,85 +37,80 @@ func main() {
 	}
 
 	bot.Debug = os.Getenv("DEBUG") == "true"
-	log.Printf("✅ Authorized as @%s (ID: %d)", bot.Self.UserName, bot.Self.ID)
-	log.Printf("📝 Bot name: %s", bot.Self.FirstName)
+	log.Printf("✅ Authorized as @%s", bot.Self.UserName)
 
 	// Инициализация обработчика БД
 	var dbHandler *handlers.BotDatabaseHandler
-
-	// Получаем строку подключения к БД из .env
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Println("⚠️ DATABASE_URL not found in .env, using in-memory only mode")
-	} else {
-		log.Printf("📊 Database URL found, initializing Supabase connection...")
-
-		// Получаем ID админа из .env
-		adminID := int64(266468924) // Значение по умолчанию
+	if dbURL != "" {
+		adminID := int64(266468924)
 		if adminEnv := os.Getenv("ADMIN_CHAT_ID"); adminEnv != "" {
 			if id, err := strconv.ParseInt(adminEnv, 10, 64); err == nil {
 				adminID = id
 			}
 		}
-		log.Printf("👑 Admin ID: %d", adminID)
 
-		// Создаем обработчик БД
+		var err error
 		dbHandler, err = handlers.NewBotDatabaseHandler(adminID, dbURL)
 		if err != nil {
 			log.Printf("❌ Error initializing database handler: %v", err)
-			log.Println("⚠️ Continuing in memory-only mode")
 		} else {
 			defer dbHandler.Close()
-			log.Printf("✅ Database handler initialized with %d records in cache", dbHandler.GetMappingCount())
+			log.Printf("✅ Database handler initialized")
 		}
 	}
 
-	// Настраиваем получение обновлений
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	log.Println("📡 Getting updates channel...")
-	updates := bot.GetUpdatesChan(u)
-
-	// Обработка сигналов для graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	log.Println("🚀 Bushlatinga Bot is running! Press Ctrl+C to stop.")
-	log.Println("📱 Open Telegram and search for @bushlatinga_bot")
-
-	// Основной цикл обработки сообщений
-	for {
-		select {
-		case update := <-updates:
-			log.Printf("📨 Update received: %+v", update.UpdateID)
-
-			// Обработка сообщений
-			if update.Message != nil {
-				// Логируем детали сообщения
-				chatType := "private"
-				if update.Message.Chat.IsGroup() {
-					chatType = "group"
-				} else if update.Message.Chat.IsSuperGroup() {
-					chatType = "supergroup"
-				}
-				logging.LogMessageDetails(update.Message, chatType)
-
-				// Обработка команд (имеет приоритет)
-				if update.Message.IsCommand() {
-					handleCommand(bot, update.Message, dbHandler)
-					continue
-				}
-
-				// Обработка обычных сообщений
-				handleMessage(bot, update.Message, dbHandler)
-			}
-
-		case <-sigChan:
-			log.Println("🛑 Shutting down Bushlatinga Bot...")
-			bot.StopReceivingUpdates()
+	// HTTP handler для webhook
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("❌ Error reading request body: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		var update tgbotapi.Update
+		if err := json.Unmarshal(body, &update); err != nil {
+			log.Printf("❌ Error unmarshaling update: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		// Обработка сообщения
+		if update.Message != nil {
+			chatType := "private"
+			if update.Message.Chat.IsGroup() {
+				chatType = "group"
+			} else if update.Message.Chat.IsSuperGroup() {
+				chatType = "supergroup"
+			}
+			logging.LogMessageDetails(update.Message, chatType)
+
+			if update.Message.IsCommand() {
+				handleCommand(bot, update.Message, dbHandler)
+			} else {
+				handleMessage(bot, update.Message, dbHandler)
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Получаем порт из переменной окружения (для Serverless Containers)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("🌐 Starting HTTP server on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("❌ Failed to start server: %v", err)
 	}
 }
 
