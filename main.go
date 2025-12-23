@@ -1,244 +1,76 @@
 package main
 
 import (
-        "encoding/json"
-        "io"
-        "log"
-        "net/http"
-        "os"
-        "strconv"
-        "strings"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
 
-        tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-        "github.com/joho/godotenv"
-        "github.com/vmkotov/telelog"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/joho/godotenv"
 
-        "bushlatinga_bot/handlers"
+	"bushlatinga_bot/bot"
+	"bushlatinga_bot/database"
 )
 
 func main() {
-        // Загружаем конфигурацию
-        log.Println("🔧 Starting Bushlatinga Bot (Webhook version)...")
+	// Загружаем конфигурацию
+	log.Println("🔧 Starting Bushlatinga Bot v3.0 (Modular Architecture)...")
 
-        if err := godotenv.Load(); err != nil {
-                log.Printf("⚠️ Warning: No .env file found: %v", err)
-        }
+	if err := godotenv.Load(); err != nil {
+		log.Printf("⚠️ Warning: No .env file found: %v", err)
+	}
 
-        // Получаем токен бота
-        token := os.Getenv("TELEGRAM_BOT_TOKEN")
-        if token == "" {
-                log.Fatal("❌ TELEGRAM_BOT_TOKEN not found in .env")
-        }
+	// Получаем токен бота
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if token == "" {
+		log.Fatal("❌ TELEGRAM_BOT_TOKEN not found in .env")
+	}
 
-        // Создаем логгер
-        logger := telelog.New()
+	// Создаем бота
+	botAPI, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		log.Fatalf("❌ Error creating bot: %v", err)
+	}
 
-        // Создаем бота
-        bot, err := tgbotapi.NewBotAPI(token)
-        if err != nil {
-                log.Fatalf("❌ Error creating bot: %v", err)
-        }
+	botAPI.Debug = os.Getenv("DEBUG") == "true"
+	log.Printf("✅ Authorized as @%s (ID: %d)", botAPI.Self.UserName, botAPI.Self.ID)
 
-        bot.Debug = os.Getenv("DEBUG") == "true"
-        log.Printf("✅ Authorized as @%s", bot.Self.UserName)
+	// Инициализация обработчика БД
+	var dbHandler *database.BotDatabaseHandler
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL != "" {
+		adminID := int64(266468924)
+		if adminEnv := os.Getenv("ADMIN_CHAT_ID"); adminEnv != "" {
+			if id, err := strconv.ParseInt(adminEnv, 10, 64); err == nil {
+				adminID = id
+			}
+		}
 
-        // Инициализация обработчика БД
-        var dbHandler *handlers.BotDatabaseHandler
-        dbURL := os.Getenv("DATABASE_URL")
-        if dbURL != "" {
-                adminID := int64(266468924)
-                if adminEnv := os.Getenv("ADMIN_CHAT_ID"); adminEnv != "" {
-                        if id, err := strconv.ParseInt(adminEnv, 10, 64); err == nil {
-                                adminID = id
-                        }
-                }
+		var err error
+		dbHandler, err = database.NewBotDatabaseHandler(adminID, dbURL)
+		if err != nil {
+			log.Printf("❌ Error initializing database handler: %v", err)
+		} else {
+			defer dbHandler.Close()
+			log.Printf("✅ Database handler initialized")
+		}
+	}
 
-                var err error
-                dbHandler, err = handlers.NewBotDatabaseHandler(adminID, dbURL)
-                if err != nil {
-                        log.Printf("❌ Error initializing database handler: %v", err)
-                } else {
-                        defer dbHandler.Close()
-                        log.Printf("✅ Database handler initialized")
-                }
-        }
+	// Создаем обработчик Telegram
+	telegramHandler := bot.NewTelegramHandler(botAPI, dbHandler)
 
-        // HTTP handler для webhook
-        http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-                if r.Method != "POST" {
-                        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-                        return
-                }
+	// Настраиваем HTTP роутер
+	http.HandleFunc("/", telegramHandler.HandleWebhook)
 
-                body, err := io.ReadAll(r.Body)
-                if err != nil {
-                        log.Printf("❌ Error reading request body: %v", err)
-                        http.Error(w, "Bad request", http.StatusBadRequest)
-                        return
-                }
+	// Получаем порт из переменной окружения
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-                var update tgbotapi.Update
-                if err := json.Unmarshal(body, &update); err != nil {
-                        log.Printf("❌ Error unmarshaling update: %v", err)
-                        http.Error(w, "Bad request", http.StatusBadRequest)
-                        return
-                }
-
-                // Обработка сообщения
-                if update.Message != nil {
-                        chatType := "private"
-                        if update.Message.Chat.IsGroup() {
-                                chatType = "group"
-                        } else if update.Message.Chat.IsSuperGroup() {
-                                chatType = "supergroup"
-                        }
-                        logger.LogMessage(update.Message, chatType)
-
-                        if update.Message.IsCommand() {
-                                handleCommand(bot, update.Message, dbHandler, logger)
-                        } else {
-                                handleMessage(bot, update.Message, dbHandler, logger)
-                        }
-                }
-
-                w.WriteHeader(http.StatusOK)
-                w.Write([]byte("OK"))
-        })
-
-        // Получаем порт из переменной окружения (для Serverless Containers)
-        port := os.Getenv("PORT")
-        if port == "" {
-                port = "8080"
-        }
-
-        log.Printf("🌐 Starting HTTP server on port %s", port)
-        if err := http.ListenAndServe(":"+port, nil); err != nil {
-                log.Fatalf("❌ Failed to start server: %v", err)
-        }
-}
-
-func handleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, dbHandler *handlers.BotDatabaseHandler, logger *telelog.Logger) {
-        // Пытаемся найти совпадение в именах через БД (если она подключена)
-        if dbHandler != nil {
-                found, response := dbHandler.CheckForNames(msg.Text, msg.From.UserName)
-                if found {
-                        log.Printf("✅ Name match found in DB for message: %s", msg.Text)
-
-                        // 🔥 ОБРАБОТКА СТИКЕРА ДЛЯ "ЕБ"
-                        if strings.HasPrefix(response, "STICKER:") {
-                                // 1. Отправляем стикер
-                                sticker := tgbotapi.NewSticker(msg.Chat.ID, tgbotapi.FileID(dbHandler.GetEBStickerID()))
-                                // Стикер тоже без цитирования
-                                // sticker.ReplyToMessageID = msg.MessageID
-
-                                if _, err := bot.Send(sticker); err != nil {
-                                        log.Printf("❌ Error sending sticker: %v", err)
-                                } else {
-                                        log.Printf("✅ Sticker sent to chat %d", msg.Chat.ID)
-                                }
-
-                                // 2. Отправляем текст (БЕЗ цитирования)
-                                textResponse := strings.TrimPrefix(response, "STICKER:")
-                                if textResponse != "" {
-                                        reply := tgbotapi.NewMessage(msg.Chat.ID, textResponse)
-                                        // БЕЗ цитирования
-                                        // reply.ReplyToMessageID = msg.MessageID
-
-                                        if _, err := bot.Send(reply); err != nil {
-                                                log.Printf("❌ Error sending text after sticker: %v", err)
-                                        }
-                                }
-                        } else {
-                                // Стандартная обработка текстового ответа (БЕЗ цитирования)
-                                reply := tgbotapi.NewMessage(msg.Chat.ID, response)
-                                // БЕЗ цитирования
-                                // reply.ReplyToMessageID = msg.MessageID
-
-                                if _, err := bot.Send(reply); err != nil {
-                                        log.Printf("❌ Error sending name response: %v", err)
-                                }
-                        }
-                        return
-                }
-        }
-
-        // Если не найдено совпадений в именах - НИЧЕГО НЕ ОТВЕЧАЕМ!
-        log.Printf("📝 No name match found for message: %s", msg.Text)
-}
-
-func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, dbHandler *handlers.BotDatabaseHandler, logger *telelog.Logger) {
-        log.Printf("⚡ Command received: /%s", msg.Command())
-	logger.LogCommand(msg, msg.Command())
-
-        switch msg.Command() {
-        case "start":
-                reply := tgbotapi.NewMessage(msg.Chat.ID,
-                        "🌿 *Привет! Я Bushlatinga Bot* — ваш помощник по документам и информации.\n\n"+
-                                "Я могу:\n"+
-                                "• Сохранять документы\n"+
-                                "• Искать информацию\n"+
-                                "• Помогать с вопросами\n"+
-                                "• Отвечать на упоминания участников\n\n"+
-                                "Используй /help для списка команд")
-                reply.ParseMode = "Markdown"
-                // Админ-команды можно оставить с цитированием для удобства
-                // reply.ReplyToMessageID = msg.MessageID
-                bot.Send(reply)
-
-        case "help":
-                helpText := "🆘 *Доступные команды:*\n\n" +
-                        "/start - Начать работу\n" +
-                        "/help - Помощь\n" +
-                        "/about - О боте\n"
-
-                // Добавляем админ команду, если пользователь админ
-                if dbHandler != nil && dbHandler.IsAdmin(msg.From.ID) {
-                        helpText += "/admin - Команды администратора\n"
-                }
-
-                helpText += "\n*Просто напиши мне вопрос или загрузи документ!*"
-
-                reply := tgbotapi.NewMessage(msg.Chat.ID, helpText)
-                reply.ParseMode = "Markdown"
-                // reply.ReplyToMessageID = msg.MessageID
-                bot.Send(reply)
-
-        case "about":
-                reply := tgbotapi.NewMessage(msg.Chat.ID,
-                        "🤖 *Bushlatinga Bot*\n"+
-                                "Версия: 2.0.0 (с поддержкой БД)\n"+
-                                "Разработчик: @vmkotov\n"+
-                                "Технологии: Go + Supabase PostgreSQL\n\n"+
-                                "Бот для работы с документами и реакцией на упоминания участников.")
-                reply.ParseMode = "Markdown"
-                // reply.ReplyToMessageID = msg.MessageID
-                bot.Send(reply)
-
-        case "admin":
-                if dbHandler != nil {
-                        response := dbHandler.HandleAdminCommand(msg.From.ID, msg.Text)
-                        reply := tgbotapi.NewMessage(msg.Chat.ID, response)
-                        reply.ParseMode = "Markdown"
-                        // Для админ-команд можно оставить цитирование для ясности
-                        // reply.ReplyToMessageID = msg.MessageID
-                        bot.Send(reply)
-                } else {
-                        reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ База данных не подключена. Режим работы: только в памяти.")
-                        // reply.ReplyToMessageID = msg.MessageID
-                        bot.Send(reply)
-                }
-
-        default:
-                // Неизвестная команда
-                reply := tgbotapi.NewMessage(msg.Chat.ID, "🤔 Неизвестная команда. Используйте /help для списка команд.")
-                // reply.ReplyToMessageID = msg.MessageID
-                bot.Send(reply)
-        }
-}
-
-func min(a, b int) int {
-        if a < b {
-                return a
-        }
-        return b
+	log.Printf("🌐 Starting HTTP server on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("❌ Failed to start server: %v", err)
+	}
 }
