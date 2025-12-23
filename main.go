@@ -38,19 +38,14 @@ func main() {
 	log.Printf("✅ Authorized as @%s (ID: %d)", botAPI.Self.UserName, botAPI.Self.ID)
 
 	// ИНИЦИАЛИЗАЦИЯ TELELOGGER
-	var teleLogger telelog.TeleLogger
+	var teleLogger *telelog.TeleLogger
 
 	// Получаем ID чата для логов из .env
 	logChatIDStr := os.Getenv("LOG_CHAT_ID")
 	if logChatIDStr != "" {
 		logChatID, err := strconv.ParseInt(logChatIDStr, 10, 64)
 		if err == nil && logChatID != 0 {
-			teleLogger = telelog.New(telelog.Options{
-				Bot:         botAPI,
-				LogChatID:   logChatID,
-				BotID:       botAPI.Self.ID,
-				BotUsername: botAPI.Self.UserName,
-			})
+			teleLogger = telelog.New(botAPI, logChatID, botAPI.Self.ID, botAPI.Self.UserName)
 			log.Printf("✅ TeleLogger initialized for chat ID: %d", logChatID)
 		} else {
 			log.Printf("⚠️ Invalid LOG_CHAT_ID, using console logger")
@@ -94,18 +89,21 @@ func main() {
 		port = "8080"
 	}
 
-	// Отправляем уведомление о запуске
-	if teleLogger.IsEnabled() {
-		deployInfo := map[string]string{
-			"version":     "3.0",
-			"environment": getEnvOrDefault("ENVIRONMENT", "production"),
-			"branch":      getEnvOrDefault("BRANCH", "main"),
-			"commit_hash": getEnvOrDefault("COMMIT_HASH", "unknown"),
-			"deployer":    "Bushlatinga Bot",
-			"timestamp":   telelog.GetCurrentTimestamp(),
+	// Отправляем уведомление о запуске (закомментировано, пока нет метода в telelog v0.2.0)
+	/*
+		if teleLogger != nil && teleLogger.IsEnabled() {
+			deployInfo := map[string]string{
+				"version":     "3.0",
+				"environment": getEnvOrDefault("ENVIRONMENT", "production"),
+				"branch":      getEnvOrDefault("BRANCH", "main"),
+				"commit_hash": getEnvOrDefault("COMMIT_HASH", "unknown"),
+				"deployer":    "Bushlatinga Bot",
+				"timestamp":   time.Now().Format("2006-01-02 15:04:05"),
+			}
+			// TODO: Добавить метод SendDeployNotification в telelog
+			// teleLogger.SendDeployNotification(deployInfo)
 		}
-		teleLogger.SendDeployNotification(deployInfo)
-	}
+	*/
 
 	log.Printf("🌐 Starting HTTP server on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

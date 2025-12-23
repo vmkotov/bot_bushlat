@@ -3,19 +3,20 @@ package bot
 import (
 	"log"
 
+	"bushlatinga_bot/database"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/vmkotov/telelog"
-	"bushlatinga_bot/database"
 )
 
 // CommandProcessor обрабатывает команды
 type CommandProcessor struct {
 	dbHandler  *database.BotDatabaseHandler
-	teleLogger telelog.TeleLogger
+	teleLogger *telelog.TeleLogger
 }
 
 // NewCommandProcessor создает новый процессор команд
-func NewCommandProcessor(dbHandler *database.BotDatabaseHandler, teleLogger telelog.TeleLogger) *CommandProcessor {
+func NewCommandProcessor(dbHandler *database.BotDatabaseHandler, teleLogger *telelog.TeleLogger) *CommandProcessor {
 	return &CommandProcessor{
 		dbHandler:  dbHandler,
 		teleLogger: teleLogger,
@@ -27,7 +28,7 @@ func (cp *CommandProcessor) ProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.M
 	log.Printf("⚡ Command received: /%s", msg.Command())
 
 	// Логируем команду через telelog
-	if cp.teleLogger != nil {
+	if cp.teleLogger != nil && cp.teleLogger.IsEnabled() {
 		cp.teleLogger.LogCommand(msg, msg.Command())
 	}
 

@@ -18,14 +18,14 @@ type TelegramHandler struct {
 	messageProcessor  *MessageProcessor
 	commandProcessor  *CommandProcessor
 	dbLogger          *DBLogger
-	teleLogger        telelog.TeleLogger
+	teleLogger        *telelog.TeleLogger
 }
 
 // NewTelegramHandler создает новый обработчик Telegram
 func NewTelegramHandler(
 	bot *tgbotapi.BotAPI, 
 	dbHandler *database.BotDatabaseHandler,
-	teleLogger telelog.TeleLogger,
+	teleLogger *telelog.TeleLogger,
 ) *TelegramHandler {
 	return &TelegramHandler{
 		bot:               bot,
@@ -79,7 +79,7 @@ func (th *TelegramHandler) processMessage(update *tgbotapi.Update) {
 	}
 
 	// Используем telelog для логирования
-	if th.teleLogger != nil {
+	if th.teleLogger != nil && th.teleLogger.IsEnabled() {
 		th.teleLogger.LogMessage(msg, chatType)
 	}
 
