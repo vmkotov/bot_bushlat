@@ -146,14 +146,14 @@ func (dl *DBLogger) logToTelegram(msg *tgbotapi.Message) {
 		return
 	}
 
-	// Форматируем сообщение для логов
+	// Форматируем сообщение БЕЗ Markdown для избежания ошибок парсинга
 	chatInfo := dl.formatChatInfo(msg)
 	userInfo := dl.formatUserInfo(msg)
 	messageInfo := dl.formatMessageInfo(msg)
 	botInfo := dl.formatBotInfo()
 
 	text := fmt.Sprintf(
-		"🤖 *Лог сообщения* %s\n\n"+
+		"🤖 Лог сообщения %s\n\n"+
 			"%s\n"+
 			"%s\n"+
 			"%s\n"+
@@ -171,7 +171,8 @@ func (dl *DBLogger) logToTelegram(msg *tgbotapi.Message) {
 	}
 
 	logMsg := tgbotapi.NewMessage(dl.logChatID, text)
-	logMsg.ParseMode = "Markdown"
+	// УБИРАЕМ ParseMode чтобы избежать ошибок Markdown
+	// logMsg.ParseMode = "Markdown"
 
 	if _, err := dl.bot.Send(logMsg); err != nil {
 		log.Printf("❌ Не удалось отправить логи в чат %d: %v", dl.logChatID, err)
@@ -180,7 +181,7 @@ func (dl *DBLogger) logToTelegram(msg *tgbotapi.Message) {
 	}
 }
 
-// formatChatInfo форматирует информацию о чате
+// formatChatInfo форматирует информацию о чате (без Markdown)
 func (dl *DBLogger) formatChatInfo(msg *tgbotapi.Message) string {
 	chatType := "личный"
 	if msg.Chat.IsGroup() {
@@ -197,19 +198,19 @@ func (dl *DBLogger) formatChatInfo(msg *tgbotapi.Message) string {
 	}
 
 	return fmt.Sprintf(
-		"💬 *Чат:* %s\n"+
+		"💬 Чат: %s\n"+
 			"📌 Тип: %s\n"+
-			"🆔 ID: `%d`",
+			"🆔 ID: %d",
 		chatTitle,
 		chatType,
 		msg.Chat.ID,
 	)
 }
 
-// formatUserInfo форматирует информацию о пользователе
+// formatUserInfo форматирует информацию о пользователе (без Markdown)
 func (dl *DBLogger) formatUserInfo(msg *tgbotapi.Message) string {
 	if msg.From == nil {
-		return "�� *Пользователь:* Неизвестен"
+		return "👤 Пользователь: Неизвестен"
 	}
 
 	userName := msg.From.UserName
@@ -226,10 +227,10 @@ func (dl *DBLogger) formatUserInfo(msg *tgbotapi.Message) string {
 	}
 
 	return fmt.Sprintf(
-		"👤 *Пользователь:* %s\n"+
+		"👤 Пользователь: %s\n"+
 			"📛 Имя: %s\n"+
-			"🔖 @%s\n"+
-			"🆔 ID: `%d`",
+			"�� @%s\n"+
+			"🆔 ID: %d",
 		fullName,
 		msg.From.FirstName,
 		userName,
@@ -237,11 +238,11 @@ func (dl *DBLogger) formatUserInfo(msg *tgbotapi.Message) string {
 	)
 }
 
-// formatMessageInfo форматирует информацию о сообщении
+// formatMessageInfo форматирует информацию о сообщении (без Markdown)
 func (dl *DBLogger) formatMessageInfo(msg *tgbotapi.Message) string {
 	messageText := msg.Text
 	if messageText == "" {
-		messageText = "⚠️ *Без текста*"
+		messageText = "⚠️ Без текста"
 		
 		// Проверяем другие типы контента
 		if msg.Sticker != nil {
@@ -263,7 +264,7 @@ func (dl *DBLogger) formatMessageInfo(msg *tgbotapi.Message) string {
 		}
 	}
 
-	info := fmt.Sprintf("📝 *Сообщение:*\n%s", messageText)
+	info := fmt.Sprintf("📝 Сообщение:\n%s", messageText)
 
 	// Добавляем информацию о reply, если есть
 	if msg.ReplyToMessage != nil {
@@ -275,18 +276,18 @@ func (dl *DBLogger) formatMessageInfo(msg *tgbotapi.Message) string {
 			replyText = replyText[:100] + "..."
 		}
 		
-		info += fmt.Sprintf("\n\n↩️ *Ответ на:*\n%s", replyText)
+		info += fmt.Sprintf("\n\n↩️ Ответ на:\n%s", replyText)
 	}
 
 	return info
 }
 
-// formatBotInfo форматирует информацию о боте
+// formatBotInfo форматирует информацию о боте (без Markdown)
 func (dl *DBLogger) formatBotInfo() string {
 	return fmt.Sprintf(
-		"\n🤖 *Информация о боте:*\n"+
+		"\n🤖 Информация о боте:\n"+
 			"Бот: @%s\n"+
-			"Bot ID: `%d`",
+			"Bot ID: %d",
 		dl.bot.Self.UserName,
 		dl.bot.Self.ID,
 	)
