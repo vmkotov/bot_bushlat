@@ -17,49 +17,63 @@ import (
 
 func main() {
 	// Загружаем конфигурацию
-	log.Println("🔧 Starting Bushlatinga Bot v3.0 (Modular Architecture)...")
+	log.Println("🔧 Запускаю Bushlatinga Bot v3.0 (Модульная архитектура)...")
 
 	if err := godotenv.Load(); err != nil {
-		log.Printf("⚠️ Warning: No .env file found: %v", err)
+		log.Printf("⚠️ Внимание: Файл .env не найден: %v", err)
 	}
 
 	// Получаем токен бота
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
-		log.Fatal("❌ TELEGRAM_BOT_TOKEN not found in .env")
+		log.Fatal("❌ TELEGRAM_BOT_TOKEN не найден в .env")
 	}
 
 	// Создаем бота
 	botAPI, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
-		log.Fatalf("❌ Error creating bot: %v", err)
+		log.Fatalf("❌ Ошибка создания бота: %v", err)
 	}
 
 	botAPI.Debug = os.Getenv("DEBUG") == "true"
-	log.Printf("✅ Authorized as @%s (ID: %d)", botAPI.Self.UserName, botAPI.Self.ID)
+	log.Printf("✅ Авторизован как @%s (ID: %d)", botAPI.Self.UserName, botAPI.Self.ID)
+
+	// 🔍 Отладочная информация
+	log.Printf("🔍 Проверяю переменные окружения:")
+	log.Printf("   LOG_CHAT_ID='%s'", os.Getenv("LOG_CHAT_ID"))
+	log.Printf("   TELEGRAM_BOT_TOKEN установлен: %v", os.Getenv("TELEGRAM_BOT_TOKEN") != "")
+	log.Printf("   DATABASE_URL установлен: %v", os.Getenv("DATABASE_URL") != "")
 
 	// ИНИЦИАЛИЗАЦИЯ TELELOGGER
 	var teleLogger telelog.TeleLogger
 
 	// Получаем ID чата для логов из .env
 	logChatIDStr := os.Getenv("LOG_CHAT_ID")
+	
+	// ⚠️ ВРЕМЕННО: если не установлено, используем дефолтное значение
+	if logChatIDStr == "" {
+		logChatIDStr = "-5094399861"
+		log.Printf("⚠️ LOG_CHAT_ID не установлен, использую значение по умолчанию: %s", logChatIDStr)
+	}
+	
 	if logChatIDStr != "" {
 		logChatID, err := strconv.ParseInt(logChatIDStr, 10, 64)
 		if err == nil && logChatID != 0 {
+			// ✅ ПРАВИЛЬНЫЙ КОНСТРУКТОР для telelog v0.3.0
 			teleLogger = telelog.New(telelog.Options{
 				Bot:         botAPI,
 				LogChatID:   logChatID,
 				BotID:       botAPI.Self.ID,
 				BotUsername: botAPI.Self.UserName,
 			})
-			log.Printf("✅ TeleLogger initialized for chat ID: %d", logChatID)
+			log.Printf("✅ TeleLogger инициализирован для чата ID: %d", logChatID)
 		} else {
-			log.Printf("⚠️ Invalid LOG_CHAT_ID, using console logger")
+			log.Printf("⚠️ Неверный LOG_CHAT_ID '%s', использую консольный логгер", logChatIDStr)
 			teleLogger = telelog.SimpleNew()
 		}
 	} else {
 		teleLogger = telelog.SimpleNew()
-		log.Println("ℹ️ LOG_CHAT_ID not set, using console logger")
+		log.Println("ℹ️ LOG_CHAT_ID не установлен, использую консольный логгер")
 	}
 
 	// Инициализация обработчика БД
@@ -76,10 +90,10 @@ func main() {
 		var err error
 		dbHandler, err = database.NewBotDatabaseHandler(adminID, dbURL)
 		if err != nil {
-			log.Printf("❌ Error initializing database handler: %v", err)
+			log.Printf("❌ Ошибка инициализации обработчика БД: %v", err)
 		} else {
 			defer dbHandler.Close()
-			log.Printf("✅ Database handler initialized")
+			log.Printf("✅ Обработчик БД инициализирован")
 		}
 	}
 
@@ -106,14 +120,18 @@ func main() {
 			"timestamp":   time.Now().Format("2006-01-02 15:04:05"),
 		}
 		teleLogger.SendDeployNotification(deployInfo)
+		log.Println("🚀 Уведомление о деплое отправлено")
+	} else {
+		log.Println("⚠️ TeleLogger не включен, уведомление о деплое не отправлено")
 	}
 
-	log.Printf("🌐 Starting HTTP server on port %s", port)
+	log.Printf("🌐 Запускаю HTTP сервер на порту %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("❌ Failed to start server: %v", err)
+		log.Fatalf("❌ Не удалось запустить сервер: %v", err)
 	}
 }
 
+// getEnvOrDefault возвращает значение переменной окружения или значение по умолчанию
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
