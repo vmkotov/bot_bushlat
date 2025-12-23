@@ -5,18 +5,21 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/vmkotov/telelog"
 	"bushlatinga_bot/database"
 )
 
 // MessageProcessor обрабатывает сообщения
 type MessageProcessor struct {
-	dbHandler *database.BotDatabaseHandler
+	dbHandler  *database.BotDatabaseHandler
+	teleLogger telelog.TeleLogger
 }
 
 // NewMessageProcessor создает новый процессор сообщений
-func NewMessageProcessor(dbHandler *database.BotDatabaseHandler) *MessageProcessor {
+func NewMessageProcessor(dbHandler *database.BotDatabaseHandler, teleLogger telelog.TeleLogger) *MessageProcessor {
 	return &MessageProcessor{
-		dbHandler: dbHandler,
+		dbHandler:  dbHandler,
+		teleLogger: teleLogger,
 	}
 }
 
@@ -35,6 +38,10 @@ func (mp *MessageProcessor) ProcessMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.M
 
 				if _, err := bot.Send(sticker); err != nil {
 					log.Printf("❌ Error sending sticker: %v", err)
+					// Логируем ошибку через telelog
+					if mp.teleLogger != nil {
+						mp.teleLogger.LogError(msg, err, "send sticker")
+					}
 				} else {
 					log.Printf("✅ Sticker sent to chat %d", msg.Chat.ID)
 				}
@@ -46,6 +53,10 @@ func (mp *MessageProcessor) ProcessMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.M
 
 					if _, err := bot.Send(reply); err != nil {
 						log.Printf("❌ Error sending text after sticker: %v", err)
+						// Логируем ошибку через telelog
+						if mp.teleLogger != nil {
+							mp.teleLogger.LogError(msg, err, "send text after sticker")
+						}
 					}
 				}
 			} else {
@@ -54,6 +65,10 @@ func (mp *MessageProcessor) ProcessMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.M
 
 				if _, err := bot.Send(reply); err != nil {
 					log.Printf("❌ Error sending name response: %v", err)
+					// Логируем ошибку через telelog
+					if mp.teleLogger != nil {
+						mp.teleLogger.LogError(msg, err, "send name response")
+					}
 				}
 			}
 			return

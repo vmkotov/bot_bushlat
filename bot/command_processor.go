@@ -4,24 +4,32 @@ import (
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/vmkotov/telelog"
 	"bushlatinga_bot/database"
 )
 
 // CommandProcessor обрабатывает команды
 type CommandProcessor struct {
-	dbHandler *database.BotDatabaseHandler
+	dbHandler  *database.BotDatabaseHandler
+	teleLogger telelog.TeleLogger
 }
 
 // NewCommandProcessor создает новый процессор команд
-func NewCommandProcessor(dbHandler *database.BotDatabaseHandler) *CommandProcessor {
+func NewCommandProcessor(dbHandler *database.BotDatabaseHandler, teleLogger telelog.TeleLogger) *CommandProcessor {
 	return &CommandProcessor{
-		dbHandler: dbHandler,
+		dbHandler:  dbHandler,
+		teleLogger: teleLogger,
 	}
 }
 
 // ProcessCommand обрабатывает команду
 func (cp *CommandProcessor) ProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	log.Printf("⚡ Command received: /%s", msg.Command())
+
+	// Логируем команду через telelog
+	if cp.teleLogger != nil {
+		cp.teleLogger.LogCommand(msg, msg.Command())
+	}
 
 	switch msg.Command() {
 	case "start":

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/vmkotov/telelog"
 	"bushlatinga_bot/database"
 )
 
@@ -17,16 +18,22 @@ type TelegramHandler struct {
 	messageProcessor  *MessageProcessor
 	commandProcessor  *CommandProcessor
 	dbLogger          *DBLogger
+	teleLogger        telelog.TeleLogger
 }
 
 // NewTelegramHandler создает новый обработчик Telegram
-func NewTelegramHandler(bot *tgbotapi.BotAPI, dbHandler *database.BotDatabaseHandler) *TelegramHandler {
+func NewTelegramHandler(
+	bot *tgbotapi.BotAPI, 
+	dbHandler *database.BotDatabaseHandler,
+	teleLogger telelog.TeleLogger,
+) *TelegramHandler {
 	return &TelegramHandler{
 		bot:               bot,
 		dbHandler:         dbHandler,
-		messageProcessor:  NewMessageProcessor(dbHandler),
-		commandProcessor:  NewCommandProcessor(dbHandler),
+		messageProcessor:  NewMessageProcessor(dbHandler, teleLogger),
+		commandProcessor:  NewCommandProcessor(dbHandler, teleLogger),
 		dbLogger:          NewDBLogger(dbHandler, bot),
+		teleLogger:        teleLogger,
 	}
 }
 
@@ -71,10 +78,10 @@ func (th *TelegramHandler) processMessage(update *tgbotapi.Update) {
 		chatType = "supergroup"
 	}
 
-	log.Printf("📨 Сообщение от @%s в %s: %s",
-		msg.From.UserName,
-		chatType,
-		msg.Text)
+	// Используем telelog для логирования
+	if th.teleLogger != nil {
+		th.teleLogger.LogMessage(msg, chatType)
+	}
 
 	// Логируем в базу данных
 	if th.dbLogger != nil {
