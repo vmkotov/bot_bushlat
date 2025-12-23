@@ -12,11 +12,11 @@ import (
 // CommandProcessor обрабатывает команды
 type CommandProcessor struct {
 	dbHandler  *database.BotDatabaseHandler
-	teleLogger *telelog.TeleLogger
+	teleLogger telelog.TeleLogger
 }
 
 // NewCommandProcessor создает новый процессор команд
-func NewCommandProcessor(dbHandler *database.BotDatabaseHandler, teleLogger *telelog.TeleLogger) *CommandProcessor {
+func NewCommandProcessor(dbHandler *database.BotDatabaseHandler, teleLogger telelog.TeleLogger) *CommandProcessor {
 	return &CommandProcessor{
 		dbHandler:  dbHandler,
 		teleLogger: teleLogger,

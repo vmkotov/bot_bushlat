@@ -18,14 +18,14 @@ type TelegramHandler struct {
 	messageProcessor  *MessageProcessor
 	commandProcessor  *CommandProcessor
 	dbLogger          *DBLogger
-	teleLogger        *telelog.TeleLogger
+	teleLogger        telelog.TeleLogger
 }
 
 // NewTelegramHandler создает новый обработчик Telegram
 func NewTelegramHandler(
 	bot *tgbotapi.BotAPI, 
 	dbHandler *database.BotDatabaseHandler,
-	teleLogger *telelog.TeleLogger,
+	teleLogger telelog.TeleLogger,
 ) *TelegramHandler {
 	return &TelegramHandler{
 		bot:               bot,

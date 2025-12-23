@@ -12,11 +12,11 @@ import (
 // MessageProcessor обрабатывает сообщения
 type MessageProcessor struct {
 	dbHandler  *database.BotDatabaseHandler
-	teleLogger *telelog.TeleLogger
+	teleLogger telelog.TeleLogger
 }
 
 // NewMessageProcessor создает новый процессор сообщений
-func NewMessageProcessor(dbHandler *database.BotDatabaseHandler, teleLogger *telelog.TeleLogger) *MessageProcessor {
+func NewMessageProcessor(dbHandler *database.BotDatabaseHandler, teleLogger telelog.TeleLogger) *MessageProcessor {
 	return &MessageProcessor{
 		dbHandler:  dbHandler,
 		teleLogger: teleLogger,
