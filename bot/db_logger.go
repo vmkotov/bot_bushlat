@@ -19,7 +19,7 @@ type DBLogger struct {
 // NewDBLogger создает новый логгер БД
 func NewDBLogger(dbHandler *database.BotDatabaseHandler, bot *tgbotapi.BotAPI) *DBLogger {
 	// Жестко задаем ID чата для логов
-	logChatID := int64(-5094399861)
+	logChatID := int64(-1003585352063)
 	
 	return &DBLogger{
 		dbHandler: dbHandler,
