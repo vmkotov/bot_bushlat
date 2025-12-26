@@ -184,19 +184,19 @@ func main() {
 	// Отправляем уведомление о деплое в отдельный чат D
 	if deployChatID != 0 && botAPI != nil {
 		deployText := "🚀 *УВЕДОМЛЕНИЕ О ДЕПЛОЕ*\n\n" +
-			"📦 Версия: 3.0.0\n" +
-			"🔧 Окружение: " + getEnvOrDefault("ENVIRONMENT", "production") + "\n" +
-			"🌿 Ветка: " + getEnvOrDefault("BRANCH", "main") + "\n" +
-			"📝 Коммит: " + getEnvOrDefault("COMMIT_HASH", "unknown") + "\n" +
-			"👤 Деплойер: Bushlatinga Bot\n" +
-			"⏰ Время: " + time.Now().Format("2006-01-02 15:04:05") + "\n" +
-			"🤖 Бот: @" + botAPI.Self.UserName + "\n\n" +
+			"📦 *Версия:* 3.0.0\n" +
+			"🔧 *Окружение:* " + getEnvOrDefault("ENVIRONMENT", "production") + "\n" +
+			"🌿 *Ветка:* " + getEnvOrDefault("BRANCH", "main") + "\n" +
+			"📝 *Коммит:* " + getEnvOrDefault("COMMIT_HASH", "unknown") + "\n" +
+			"👤 *Деплойер:* Bushlatinga Bot\n" +
+			"⏰ *Время:* " + time.Now().Format("2006-01-02 15:04:05") + "\n" +
+			"🤖 *Бот:* @" + botAPI.Self.UserName + "\n\n" +
 			"📊 *Распределение логов:*\n" +
 			"• Чат А: Важные уведомления\n" +
 			"• Чат B: Архив сообщений\n" +
 			"• Чат C: Детальные логи\n" +
 			"• Чат D: Уведомления о деплое\n\n" +
-			"✅ Деплой успешно завершен!"
+			"✅ *Деплой успешно завершен!*"
 
 		deployMsg := tgbotapi.NewMessage(deployChatID, deployText)
 		deployMsg.ParseMode = "Markdown"
