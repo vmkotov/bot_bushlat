@@ -59,7 +59,7 @@ func main() {
 	//======================================================
 
 	// ХАРДКОД: ID чата для TeleLogger (Чат A: Важные уведомления)
-	teleLoggerChatID := int64(-1003459160643) // ← ВАШ НОВЫЙ ЧАТ!
+	teleLoggerChatID := int64(-1003459160643)
 	log.Printf("🎯 Хардкод ID чата для TeleLogger (Чат A): %d", teleLoggerChatID)
 
 	//======================================================
@@ -72,7 +72,7 @@ func main() {
 	if teleLoggerChatID != 0 {
 		teleLogger = telelog.New(telelog.Options{
 			Bot:         botAPI,
-			LogChatID:   teleLoggerChatID, // ← ХАРДКОД -1003459160643
+			LogChatID:   teleLoggerChatID,
 			BotID:       botAPI.Self.ID,
 			BotUsername: botAPI.Self.UserName,
 		})
@@ -137,16 +137,11 @@ func main() {
 
 	if forwardChatID != 0 {
 		messageForwarder = bot.NewMessageForwarder(botAPI, forwardChatID)
-		log.Printf("✅ MessageForwarder инициализирован для Чат B")
-		log.Printf("   🎯 Целевой чат ID: %d", forwardChatID)
-		log.Printf("   📨 Все сообщения будут пересылаться в этот чат (Архив)")
-
-		// Тестовое сообщение в Чат B
-		}
+		log.Printf("✅ MessageForwarder инициализирован")
+		log.Printf("   🎯 Чат B (Архив): %d", forwardChatID)
 	} else {
 		log.Println("⚠️ ID чата для пересылки равен 0, MessageForwarder не создан")
 	}
-	//======================================================
 
 	//======================================================
 	// БЛОК 8: СОЗДАНИЕ ОБРАБОТЧИКА ТЕЛЕГРАМ ВЕБХУКОВ
@@ -160,6 +155,11 @@ func main() {
 	)
 
 	log.Println("✅ Обработчик Telegram вебхуков создан")
+
+	//======================================================
+	// БЛОК 9: НАСТРОЙКА HTTP СЕРВЕРА И РОУТИНГА
+	//======================================================
+
 	http.HandleFunc("/", telegramHandler.HandleWebhook)
 
 	port := os.Getenv("PORT")
