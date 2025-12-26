@@ -46,6 +46,7 @@ func main() {
 
 	// ИНИЦИАЛИЗАЦИЯ TELELOGGER
 	var teleLogger telelog.TeleLogger
+	var logChatID int64 // Объявляем переменную здесь
 
 	// Получаем ID чата для логов из .env
 	logChatIDStr := os.Getenv("LOG_CHAT_ID")
@@ -57,7 +58,8 @@ func main() {
 	}
 
 	if logChatIDStr != "" {
-		logChatID, err := strconv.ParseInt(logChatIDStr, 10, 64)
+		var err error
+		logChatID, err = strconv.ParseInt(logChatIDStr, 10, 64)
 		if err == nil && logChatID != 0 {
 			// ✅ ПРАВИЛЬНЫЙ КОНСТРУКТОР для telelog v0.3.0
 			teleLogger = telelog.New(telelog.Options{

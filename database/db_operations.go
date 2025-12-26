@@ -10,7 +10,7 @@ import (
 // CheckForNames проверяет наличие ровно одного имени в сообщении (ПРЯМО ИЗ БД!)
 func (h *BotDatabaseHandler) CheckForNames(text, userName string) (bool, string) {
 	messageText := strings.ToLower(text)
-	
+
 	// ПРОВЕРЯЕМ "ЕБ" ОТДЕЛЬНО
 	if CheckForEB(text) {
 		// Возвращаем специальный маркер для стикера
@@ -129,7 +129,7 @@ func (h *BotDatabaseHandler) GetMapping() map[string]string {
 // SearchInValues ищет текст в значениях маппинга
 func (h *BotDatabaseHandler) SearchInValues(searchText string) map[string]string {
 	query := "SELECT trigger_text, response_text FROM bushlatinga_bot.bushlatinga_responses WHERE LOWER(response_text) LIKE $1"
-	
+
 	rows, err := h.db.Query(query, "%"+strings.ToLower(searchText)+"%")
 	if err != nil {
 		log.Printf("❌ Ошибка поиска: %v", err)
@@ -152,14 +152,14 @@ func (h *BotDatabaseHandler) SearchInValues(searchText string) map[string]string
 // GetMappingCount возвращает количество записей в маппинге
 func (h *BotDatabaseHandler) GetMappingCount() int {
 	query := "SELECT COUNT(*) FROM bushlatinga_bot.bushlatinga_responses"
-	
+
 	var count int
 	err := h.db.QueryRow(query).Scan(&count)
 	if err != nil {
 		log.Printf("❌ Ошибка подсчета записей: %v", err)
 		return 0
 	}
-	
+
 	return count
 }
 
@@ -167,7 +167,7 @@ func (h *BotDatabaseHandler) GetMappingCount() int {
 func (h *BotDatabaseHandler) loadCache() error {
 	// Просто проверяем, что таблица существует
 	query := "SELECT COUNT(*) FROM bushlatinga_bot.bushlatinga_responses"
-	
+
 	var count int
 	err := h.db.QueryRow(query).Scan(&count)
 	if err != nil {
@@ -175,7 +175,7 @@ func (h *BotDatabaseHandler) loadCache() error {
 		log.Println("📝 Таблица bushlatinga_responses еще не содержит данных")
 		return nil
 	}
-	
+
 	log.Printf("✅ В таблице bushlatinga_responses найдено %d записей", count)
 	return nil
 }
