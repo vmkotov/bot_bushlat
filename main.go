@@ -110,7 +110,15 @@ func main() {
 	}
 
 	// Создаем обработчик Telegram с логгером
-	telegramHandler := bot.NewTelegramHandler(botAPI, dbHandler, teleLogger)
+
+	// ИНИЦИАЛИЗАЦИЯ MESSAGE FORWARDER
+	var messageForwarder *bot.MessageForwarder
+	if logChatID != 0 {
+		messageForwarder = bot.NewMessageForwarder(botAPI, logChatID)
+		log.Printf("✅ MessageForwarder инициализирован для чата ID: %d", logChatID)
+	}
+
+	telegramHandler := bot.NewTelegramHandler(botAPI, dbHandler, teleLogger, messageForwarder)
 
 	// Настраиваем HTTP роутер
 	http.HandleFunc("/", telegramHandler.HandleWebhook)
